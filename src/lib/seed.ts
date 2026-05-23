@@ -2,7 +2,7 @@ import { db, DBStore, Company, ProductEvent } from './db';
 import { generateEmbedding } from './ai';
 
 // Pre-generated seed events list to ensure high-fidelity mock vector embeddings are loaded
-export async function seedData() {
+export async function getSeedStore(): Promise<DBStore> {
   console.log('[Seed DB] Initiating seeding process...');
 
   const companies: Company[] = [
@@ -251,12 +251,6 @@ export async function seedData() {
     store.events.push(eventWithId);
   }
 
-  // 3. Write structured JSON back to disk
-  db.addEvent // trigger basic init
-  const fs = require('fs');
-  const path = require('path');
-  const STORE_PATH = path.join(process.cwd(), 'src', 'lib', 'data-store.json');
-  fs.writeFileSync(STORE_PATH, JSON.stringify(store, null, 2), 'utf-8');
-
-  console.log(`[Seed DB] Seeding completed! Loaded ${store.companies.length} companies and ${store.events.length} chronological product strategy pivots.`);
+  console.log(`[Seed DB] Seeding compiled! Prepared ${store.companies.length} companies and ${store.events.length} chronological product strategy pivots.`);
+  return store;
 }

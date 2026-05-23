@@ -39,8 +39,11 @@ export function initLocalDB(): DBStore {
     
     // Attempt auto-seed
     try {
-      const { seedData } = require('./seed');
-      seedData();
+      const { getSeedStore } = require('./seed');
+      getSeedStore().then((seededStore: DBStore) => {
+        saveLocalDB(seededStore);
+        console.log("[Local DB] Auto-seeding database from seed template completed successfully.");
+      });
     } catch (e) {
       console.error("Auto-seeding failed:", e);
     }
