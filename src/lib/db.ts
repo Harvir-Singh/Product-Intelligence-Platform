@@ -23,8 +23,9 @@ let dbCache: DBStore | null = null;
 export function initLocalDB(): DBStore {
   if (dbCache) return dbCache;
 
-  const fs = require('fs');
-  const path = require('path');
+  const req = eval('require');
+  const fs = req('fs');
+  const path = req('path');
   const STORE_PATH = path.join(process.cwd(), 'src', 'lib', 'data-store.json');
 
   const dir = path.dirname(STORE_PATH);
@@ -39,7 +40,7 @@ export function initLocalDB(): DBStore {
     
     // Attempt auto-seed
     try {
-      const { getSeedStore } = require('./seed');
+      const { getSeedStore } = req('./seed');
       getSeedStore().then((seededStore: DBStore) => {
         saveLocalDB(seededStore);
         console.log("[Local DB] Auto-seeding database from seed template completed successfully.");
@@ -66,8 +67,9 @@ export function initLocalDB(): DBStore {
 // Save Local JSON Database Store
 export function saveLocalDB(store: DBStore) {
   dbCache = store;
-  const fs = require('fs');
-  const path = require('path');
+  const req = eval('require');
+  const fs = req('fs');
+  const path = req('path');
   const STORE_PATH = path.join(process.cwd(), 'src', 'lib', 'data-store.json');
   fs.writeFileSync(STORE_PATH, JSON.stringify(store, null, 2), 'utf-8');
 }
