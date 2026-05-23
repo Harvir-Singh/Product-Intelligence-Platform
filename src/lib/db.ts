@@ -1,9 +1,5 @@
-import fs from 'fs';
-import path from 'path';
 import { ProductEvent, Company, DBStore } from './types';
 export * from './types';
-
-const STORE_PATH = path.join(process.cwd(), 'src', 'lib', 'data-store.json');
 
 // Helper to compute cosine similarity between two vector embeddings
 export function cosineSimilarity(vecA: number[], vecB: number[]): number {
@@ -26,6 +22,10 @@ let dbCache: DBStore | null = null;
 // Initialize Local JSON Database Store
 export function initLocalDB(): DBStore {
   if (dbCache) return dbCache;
+
+  const fs = require('fs');
+  const path = require('path');
+  const STORE_PATH = path.join(process.cwd(), 'src', 'lib', 'data-store.json');
 
   const dir = path.dirname(STORE_PATH);
   if (!fs.existsSync(dir)) {
@@ -66,6 +66,9 @@ export function initLocalDB(): DBStore {
 // Save Local JSON Database Store
 export function saveLocalDB(store: DBStore) {
   dbCache = store;
+  const fs = require('fs');
+  const path = require('path');
+  const STORE_PATH = path.join(process.cwd(), 'src', 'lib', 'data-store.json');
   fs.writeFileSync(STORE_PATH, JSON.stringify(store, null, 2), 'utf-8');
 }
 
