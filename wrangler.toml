@@ -1,8 +1,0 @@
-name = "product-intelligence-os"
-compatibility_date = "2026-05-22"
-pages_build_output_dir = ".next"
-
-[[d1_databases]]
-binding = "product_intel_db"
-database_name = "product-intel-db"
-database_id = "23b59316-b120-4020-8eb4-ba2698bb9bd5"
