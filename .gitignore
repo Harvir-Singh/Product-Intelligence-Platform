@@ -1,0 +1,53 @@
+# ==============================================================================
+# STRATEGY PLATFORM GITIGNORE DIRECTIVES
+# ==============================================================================
+
+# 1. Dependency Directories
+node_modules/
+jspm_packages/
+web_modules/
+
+# 2. Next.js Build Outputs & Caches
+.next/
+out/
+.docusaurus/
+.next-env.d.ts
+tsconfig.tsbuildinfo
+
+# 3. Cloudflare Pages & Vercel Compiler Outputs
+.vercel/
+.pages/
+.wrangler/
+dist/
+build/
+
+# 4. Sensitive Environment Variables & Secrets (CRITICAL)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# 5. Local Database Store & Seed Cache
+src/lib/data-store.json
+
+# 6. Logs, Diagnostics & Diagnostics Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.log
+logs/
+
+# 7. OS & Editor Caches
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

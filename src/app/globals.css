@@ -1,0 +1,154 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-inter: 'Inter', sans-serif;
+  --font-outfit: 'Outfit', sans-serif;
+}
+
+body {
+  background-color: #08090d;
+  color: #e2e8f0;
+  font-family: var(--font-inter), sans-serif;
+  overflow-x: hidden;
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(19, 21, 33, 0.7) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(26, 17, 36, 0.4) 0%, transparent 40%),
+    linear-gradient(rgba(18, 20, 28, 0.25) 1px, transparent 1px), 
+    linear-gradient(90deg, rgba(18, 20, 28, 0.25) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 30px 30px, 30px 30px;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #090a0f;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #202538;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #00ff88;
+}
+
+/* Bloomberg Panel Styling */
+.terminal-panel {
+  background: rgba(18, 20, 28, 0.85);
+  border: 1px solid rgba(32, 37, 56, 0.6);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.terminal-panel:hover {
+  border-color: rgba(0, 229, 255, 0.4);
+  box-shadow: 0 0 15px rgba(0, 229, 255, 0.15);
+}
+
+.terminal-header {
+  border-bottom: 1px solid rgba(32, 37, 56, 0.8);
+  background: rgba(13, 15, 22, 0.9);
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Glow Effects */
+.glow-text-green {
+  text-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+}
+
+.glow-text-blue {
+  text-shadow: 0 0 8px rgba(0, 229, 255, 0.5);
+}
+
+.glow-text-purple {
+  text-shadow: 0 0 8px rgba(191, 85, 236, 0.5);
+}
+
+.glow-border-green:hover {
+  border-color: #00ff88;
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.25);
+}
+
+.glow-border-blue:hover {
+  border-color: #00e5ff;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.25);
+}
+
+/* LED Indicator lights */
+.led-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.led-green {
+  background-color: #00ff88;
+  box-shadow: 0 0 8px #00ff88;
+}
+
+.led-blue {
+  background-color: #00e5ff;
+  box-shadow: 0 0 8px #00e5ff;
+}
+
+.led-purple {
+  background-color: #bf55ec;
+  box-shadow: 0 0 8px #bf55ec;
+}
+
+.led-amber {
+  background-color: #ffb900;
+  box-shadow: 0 0 8px #ffb900;
+}
+
+.led-rose {
+  background-color: #ff007f;
+  box-shadow: 0 0 8px #ff007f;
+}
+
+/* Scanline visual overlay effect */
+.scanline {
+  width: 100%;
+  height: 100px;
+  z-index: 99999;
+  background: linear-gradient(
+    0deg,
+    rgba(255,255,255,0) 10%,
+    rgba(0, 255, 136, 0.02) 50%,
+    rgba(255,255,255,0) 90%
+  );
+  opacity: 0.1;
+  position: absolute;
+  bottom: 100%;
+  animation: scanline 8s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes scanline {
+  0% {
+    bottom: 100%;
+  }
+  100% {
+    bottom: 0%;
+  }
+}
+
+/* Custom Outlined styling for titles */
+.title-font {
+  font-family: var(--font-outfit), sans-serif;
+  letter-spacing: -0.02em;
+}
