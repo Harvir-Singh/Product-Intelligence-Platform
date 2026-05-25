@@ -1,4 +1,4 @@
-import { ProductEvent, Company, DBStore } from './types';
+import { ProductEvent, Company } from './types';
 export * from './types';
 
 // Helper to compute cosine similarity between two vector embeddings
@@ -16,67 +16,14 @@ export function cosineSimilarity(vecA: number[], vecB: number[]): number {
   return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
-// In-memory caching for local development
-let dbCache: DBStore | null = null;
+// Helper to resolve the local server database bridge URL
+const getLocalDBUrl = () => {
+  const port = process.env.PORT || '3000';
+  return `http://127.0.0.1:${port}/api/local-db`;
+};
 
-// Initialize Local JSON Database Store
-export function initLocalDB(): DBStore {
-  if (dbCache) return dbCache;
-
-  const req = eval('require');
-  const fs = req('fs');
-  const path = req('path');
-  const STORE_PATH = path.join(process.cwd(), 'src', 'lib', 'data-store.json');
-
-  const dir = path.dirname(STORE_PATH);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-
-  if (!fs.existsSync(STORE_PATH)) {
-    const emptyState: DBStore = { events: [], companies: [] };
-    fs.writeFileSync(STORE_PATH, JSON.stringify(emptyState, null, 2), 'utf-8');
-    dbCache = emptyState;
-    
-    // Attempt auto-seed
-    try {
-      const { getSeedStore } = req('./seed');
-      getSeedStore().then((seededStore: DBStore) => {
-        saveLocalDB(seededStore);
-        console.log("[Local DB] Auto-seeding database from seed template completed successfully.");
-      });
-    } catch (e) {
-      console.error("Auto-seeding failed:", e);
-    }
-    
-    return dbCache as DBStore;
-  }
-
-  try {
-    const raw = fs.readFileSync(STORE_PATH, 'utf-8');
-    dbCache = JSON.parse(raw);
-    return dbCache as DBStore;
-  } catch (e) {
-    const emptyState: DBStore = { events: [], companies: [] };
-    fs.writeFileSync(STORE_PATH, JSON.stringify(emptyState, null, 2), 'utf-8');
-    dbCache = emptyState;
-    return dbCache;
-  }
-}
-
-// Save Local JSON Database Store
-export function saveLocalDB(store: DBStore) {
-  dbCache = store;
-  const req = eval('require');
-  const fs = req('fs');
-  const path = req('path');
-  const STORE_PATH = path.join(process.cwd(), 'src', 'lib', 'data-store.json');
-  fs.writeFileSync(STORE_PATH, JSON.stringify(store, null, 2), 'utf-8');
-}
-
-// Hybrid Edge DB Client
+// Pure Edge Database Client
 export const db = {
-  // Retrieve events
   getEvents: async (filters?: {
     company_name?: string;
     slug?: string;
@@ -89,9 +36,11 @@ export const db = {
     search_embedding?: number[];
   }): Promise<ProductEvent[]> => {
     
-    // Check if Cloudflare D1 database binding is present (Cloud Mode)
     const d1 = (process.env as any).product_intel_db;
     
+    // -------------------------------------------------------------
+    // A. CLOUD MODE (Cloudflare D1 SQL Binding)
+    // -------------------------------------------------------------
     if (d1) {
       console.log("[D1 Client] Executing SQL Query on Cloudflare D1 Space...");
       try {
@@ -132,7 +81,6 @@ export const db = {
 
         const { results } = await d1.prepare(query).bind(...params).all();
         
-        // Parse serialized JSON text fields
         let parsedResults: ProductEvent[] = (results || []).map((row: any) => ({
           id: row.id,
           company_name: row.company_name,
@@ -153,14 +101,12 @@ export const db = {
           embedding: JSON.parse(row.embedding || "[]")
         }));
 
-        // Filter by tags in memory
         if (filters?.tags && filters.tags.length > 0) {
           parsedResults = parsedResults.filter(e => 
             filters.tags!.every(t => e.tags.map(tag => tag.toLowerCase()).includes(t.toLowerCase()))
           );
         }
 
-        // Textual keyword filter in memory
         if (filters?.search_query) {
           const q = filters.search_query.toLowerCase();
           parsedResults = parsedResults.filter(e => 
@@ -171,7 +117,6 @@ export const db = {
           );
         }
 
-        // Vector Cosine Similarity Search in memory
         if (filters?.search_embedding && filters.search_embedding.length > 0) {
           const queryVec = filters.search_embedding;
           type SearchMatch = { event: ProductEvent; score: number };
@@ -190,67 +135,38 @@ export const db = {
     }
 
     // -------------------------------------------------------------
-    // LOCAL FILE PERSISTENCE MODE (JSON fallback)
+    // B. LOCAL DEV MODE (Node Serverless Bridge fetch)
     // -------------------------------------------------------------
-    const store = initLocalDB();
-    let results = [...store.events];
-
-    if (filters?.slug) {
-      results = results.filter(e => e.slug.toLowerCase() === filters.slug!.toLowerCase());
-    }
-    if (filters?.company_name) {
-      results = results.filter(e => e.company_name.toLowerCase() === filters.company_name!.toLowerCase());
-    }
-    if (filters?.product_type) {
-      results = results.filter(e => e.product_type === filters.product_type);
-    }
-    if (filters?.event_type) {
-      results = results.filter(e => e.event_type === filters.event_type);
-    }
-    if (filters?.tags && filters.tags.length > 0) {
-      results = results.filter(e => 
-        filters.tags!.every(t => e.tags.map(tag => tag.toLowerCase()).includes(t.toLowerCase()))
-      );
-    }
-    if (filters?.date_start) {
-      results = results.filter(e => e.date >= filters.date_start!);
-    }
-    if (filters?.date_end) {
-      results = results.filter(e => e.date <= filters.date_end!);
-    }
-    if (filters?.search_query) {
-      const q = filters.search_query.toLowerCase();
-      results = results.filter(e => 
-        e.company_name.toLowerCase().includes(q) ||
-        e.summary.toLowerCase().includes(q) ||
-        e.strategic_insights.product_strategy.toLowerCase().includes(q) ||
-        e.tags.some(t => t.toLowerCase().includes(q))
-      );
-    }
-    if (filters?.search_embedding && filters.search_embedding.length > 0) {
-      const queryVec = filters.search_embedding;
-      type SearchMatch = { event: ProductEvent; score: number };
-      const matched: SearchMatch[] = results.map(e => {
-        const score = e.embedding && e.embedding.length > 0 ? cosineSimilarity(queryVec, e.embedding) : 0;
-        return { event: e, score };
+    try {
+      const res = await fetch(getLocalDBUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'getEvents', filters }),
+        // Avoid caching locally during live updates
+        cache: 'no-store'
       });
-      matched.sort((a, b) => b.score - a.score);
-      return matched.filter(m => m.score > 0.15).map(m => m.event);
+      if (res.ok) {
+        const payload = await res.json();
+        return payload.data || [];
+      }
+    } catch (err) {
+      console.warn("[Local DB-Edge] Fetch bridge to local Node store offline, returning empty fallback.", err);
     }
-
-    return results.sort((a, b) => b.date.localeCompare(a.date));
+    
+    return [];
   },
 
-  // Append new event
   addEvent: async (event: Omit<ProductEvent, 'id'>): Promise<ProductEvent> => {
     const d1 = (process.env as any).product_intel_db;
     const newId = Math.random().toString(36).substring(2, 11);
     const companySlug = event.company_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
+    // -------------------------------------------------------------
+    // A. CLOUD MODE (Cloudflare D1 SQL Insert)
+    // -------------------------------------------------------------
     if (d1) {
       console.log(`[D1 Client] Appending strategy node to Cloud D1: "${event.company_name}"`);
       try {
-        // 1. Insert/Update company aggregate profile
         await d1.prepare(`
           INSERT INTO companies (name, slug, logo_url, description, current_product_type)
           VALUES (?, ?, ?, ?, ?)
@@ -264,7 +180,6 @@ export const db = {
           event.product_type
         ).run();
 
-        // 2. Insert chronological pivot block
         await d1.prepare(`
           INSERT INTO events (
             id, company_name, slug, product_type, event_type, date, summary, 
@@ -296,42 +211,33 @@ export const db = {
     }
 
     // -------------------------------------------------------------
-    // LOCAL DEV FILE PERSISTENCE MODE
+    // B. LOCAL DEV MODE (Node Serverless Bridge fetch)
     // -------------------------------------------------------------
-    const store = initLocalDB();
-    const duplicate = store.events.find(e => 
-      e.company_name.toLowerCase() === event.company_name.toLowerCase() &&
-      e.date === event.date &&
-      e.event_type === event.event_type
-    );
-    if (duplicate) return duplicate;
-
-    const newEvent: ProductEvent = { ...event, id: newId };
-    store.events.push(newEvent);
-
-    let comp = store.companies.find(c => c.name.toLowerCase() === event.company_name.toLowerCase());
-    if (!comp) {
-      comp = {
-        name: event.company_name,
-        slug: companySlug,
-        logo_url: `https://logo.clearbit.com/${event.company_name.toLowerCase().replace(/\s+/g, '')}.com` || '',
-        description: `${event.company_name} is a leading platform operating in the ${event.product_type} space.`,
-        current_product_type: event.product_type
-      };
-      store.companies.push(comp);
-    } else {
-      comp.current_product_type = event.product_type;
+    try {
+      const res = await fetch(getLocalDBUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'addEvent', event }),
+        cache: 'no-store'
+      });
+      if (res.ok) {
+        const payload = await res.json();
+        return payload.data;
+      }
+    } catch (err) {
+      console.warn("[Local DB-Edge] Fetch insert bridge to Node store failed.", err);
     }
 
-    saveLocalDB(store);
-    return newEvent;
+    return { ...event, id: newId };
   },
 
-  // Get all unique companies
   getCompanies: async (): Promise<Company[]> => {
     const d1 = (process.env as any).product_intel_db;
+    
+    // -------------------------------------------------------------
+    // A. CLOUD MODE (Cloudflare D1 SQL)
+    // -------------------------------------------------------------
     if (d1) {
-      console.log("[D1 Client] Querying all company profiles from D1...");
       try {
         const { results } = await d1.prepare("SELECT * FROM companies").all();
         return results || [];
@@ -340,13 +246,33 @@ export const db = {
       }
     }
 
-    const store = initLocalDB();
-    return store.companies;
+    // -------------------------------------------------------------
+    // B. LOCAL DEV MODE (Node Serverless Bridge fetch)
+    // -------------------------------------------------------------
+    try {
+      const res = await fetch(getLocalDBUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'getCompanies' }),
+        cache: 'no-store'
+      });
+      if (res.ok) {
+        const payload = await res.json();
+        return payload.data || [];
+      }
+    } catch (err) {
+      console.warn("[Local DB-Edge] Fetch companies bridge failed.", err);
+    }
+
+    return [];
   },
 
-  // Get single company by slug
   getCompany: async (slug: string): Promise<Company | undefined> => {
     const d1 = (process.env as any).product_intel_db;
+    
+    // -------------------------------------------------------------
+    // A. CLOUD MODE (Cloudflare D1 SQL)
+    // -------------------------------------------------------------
     if (d1) {
       try {
         const row = await d1.prepare("SELECT * FROM companies WHERE slug = ?").bind(slug.toLowerCase()).first();
@@ -356,7 +282,24 @@ export const db = {
       }
     }
 
-    const store = initLocalDB();
-    return store.companies.find(c => c.slug.toLowerCase() === slug.toLowerCase());
+    // -------------------------------------------------------------
+    // B. LOCAL DEV MODE (Node Serverless Bridge fetch)
+    // -------------------------------------------------------------
+    try {
+      const res = await fetch(getLocalDBUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'getCompany', slug }),
+        cache: 'no-store'
+      });
+      if (res.ok) {
+        const payload = await res.json();
+        return payload.data || undefined;
+      }
+    } catch (err) {
+      console.warn("[Local DB-Edge] Fetch single company bridge failed.", err);
+    }
+
+    return undefined;
   }
 };
