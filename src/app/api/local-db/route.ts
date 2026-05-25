@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { dbNode } from '@/lib/db-node';
+
+export const runtime = 'edge';
 
 export async function POST(request: Request) {
   try {
@@ -11,6 +12,12 @@ export async function POST(request: Request) {
     }
 
     console.log(`[API Local-DB] Executing action: ${action}`);
+
+    // Dynamically require db-node so Webpack/Turbopack ignores it at Edge compile time
+    const req = typeof require !== 'undefined' ? require : null;
+    const pathParts = ['..', '..', '..', 'lib', 'db-node'];
+    const modulePath = pathParts.join('/');
+    const { dbNode } = req ? req(modulePath) : { dbNode: null };
 
     let data: any = null;
 
